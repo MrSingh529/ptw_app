@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { AdminClient } from './admin-client';
 import { AuthGuard } from '@/components/auth-guard';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminDashboard() {
   return (
