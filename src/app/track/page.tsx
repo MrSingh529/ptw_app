@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { TrackingClient } from './tracking-client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TrackPage() {
   return (
@@ -12,9 +13,19 @@ export default function TrackPage() {
           Enter your tracking ID below to see the current status of your request.
         </p>
       </header>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<CardSkeleton />}>
         <TrackingClient />
       </Suspense>
     </div>
   );
+}
+
+
+function CardSkeleton() {
+    return (
+        <div className="space-y-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-48 w-full" />
+        </div>
+    )
 }
