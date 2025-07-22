@@ -139,7 +139,7 @@ export async function submitPermit(formData: FormData) {
     
       // 6. Email Sending
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rvsptwapp.vercel.app';
         const approvalLink = `${baseUrl}/approve/${approvalToken}`;
     
         // Send to Approver
@@ -223,7 +223,7 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         const permitData = permitDoc.data() as Permit;
         const requesterEmail = permitData.data.requesterEmail;
         const trackingId = permitData.trackingId;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rvsptwapp.vercel.app';
 
         if (permitData.status !== "Pending") {
             return { success: false, error: "This permit has already been actioned." };
