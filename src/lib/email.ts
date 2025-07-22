@@ -37,8 +37,16 @@ export async function sendEmail({ to, subject, html }: MailOptions) {
     console.log('Email sent: %s', info.messageId);
     return { success: true };
   } catch (error) {
-    console.error('Error sending email:', error);
+    // Log the full error for better debugging on Vercel
+    console.error('Nodemailer error:', error);
+    if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error name:', error.name);
+        if ('code' in error) {
+             console.error('Error code:', (error as any).code);
+        }
+    }
     // In a real app, you might want to have a more robust error handling/fallback mechanism.
-    return { success: false, error: 'Failed to send email.' };
+    return { success: false, error: 'Failed to send email. Check server logs for details.' };
   }
 }
