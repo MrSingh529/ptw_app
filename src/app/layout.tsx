@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
@@ -19,6 +20,9 @@ const fontSpaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "PermitFlow",
   description: "A streamlined permit-to-work approval web app.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
