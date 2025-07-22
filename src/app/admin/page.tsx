@@ -4,6 +4,8 @@ import { AdminClient } from './admin-client';
 import { AuthGuard } from '@/components/auth-guard';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export const dynamic = 'force-dynamic';
+
 export default function AdminDashboard() {
   return (
     <AuthGuard>
