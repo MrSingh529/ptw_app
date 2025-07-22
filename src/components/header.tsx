@@ -2,7 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { ShieldCheck, LogOut } from "lucide-react";
+import Image from "next/image";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -14,8 +15,13 @@ export function Header() {
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline">PermitFlow</span>
+            <Image 
+              src="/logo.png" 
+              alt="PermitFlow Logo" 
+              width={50} 
+              height={50} 
+              className="object-contain"
+            />
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             <Link
