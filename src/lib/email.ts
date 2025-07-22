@@ -3,6 +3,11 @@
 
 import nodemailer from 'nodemailer';
 
+// NOTE: This file is no longer actively used for sending emails from the server
+// due to firewall restrictions on Vercel. Email notifications are now handled
+// on the client-side using 'mailto:' links.
+// This code is kept for reference or future use if the infrastructure changes.
+
 // 1. Create a transporter object
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_SERVER_HOST,
@@ -17,8 +22,6 @@ const transporter = nodemailer.createTransport({
     // This is often necessary for custom or private mail servers
     // that might use self-signed certificates or specific cipher suites.
     rejectUnauthorized: false,
-    // Known workaround for specific mail server connection issues on modern platforms.
-    ciphers: 'SSLv3',
   }
 });
 
@@ -30,16 +33,19 @@ interface MailOptions {
 
 // 2. Define the sendEmail function
 export async function sendEmail({ to, subject, html }: MailOptions) {
+  console.warn("sendEmail function was called, but it is deprecated due to server firewall issues. Emails are now handled client-side.");
+  return { success: false, error: "Server-side email sending is disabled." };
+
+  // The original code is below for reference.
+  /*
   const mailOptions = {
-    from: `PermitFlow <${process.env.EMAIL_FROM}>`,
+    from: `"PermitFlow" <${process.env.EMAIL_FROM}>`,
     to,
     subject,
     html,
   };
 
   try {
-    // Verify connection configuration on server startup
-    // This isn't a route, so we can't do it on startup, but we can log before sending.
     console.log('Attempting to send email with the following options:', {
         host: process.env.EMAIL_SERVER_HOST,
         port: process.env.EMAIL_SERVER_PORT,
@@ -59,7 +65,6 @@ export async function sendEmail({ to, subject, html }: MailOptions) {
     if (error instanceof Error) {
         errorMessage = error.message;
         const err = error as any;
-        // Log common specific nodemailer error codes
         if (err.code) {
             console.error(`Nodemailer Error Code: ${err.code}`);
             errorMessage += ` (Code: ${err.code})`;
@@ -71,4 +76,5 @@ export async function sendEmail({ to, subject, html }: MailOptions) {
     
     return { success: false, error: `Failed to send email. ${errorMessage}` };
   }
+  */
 }

@@ -295,9 +295,19 @@ export function PtwForm() {
             if (result.success && result.trackingId) {
                 toast({
                     title: "Permit Submitted",
-                    description: `Your tracking ID is ${result.trackingId}. ${result.warning || ''}`,
+                    description: `Your tracking ID is ${result.trackingId}.`,
                 });
-                router.push(`/submitted/${encodeURIComponent(result.trackingId)}`);
+                
+                // Redirect to a page that will handle the mailto links
+                const query = new URLSearchParams({
+                  trackingId: result.trackingId,
+                  approverEmail: result.approverEmail || '',
+                  requesterEmail: result.requesterEmail || '',
+                  approvalToken: result.approvalToken || ''
+                });
+
+                router.push(`/submitted/${encodeURIComponent(result.trackingId)}?${query.toString()}`);
+
             } else {
                 toast({
                     variant: "destructive",
@@ -835,5 +845,3 @@ export function PtwForm() {
     </Form>
   );
 }
-
-    

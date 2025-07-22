@@ -88,11 +88,7 @@ export async function submitPermit(formData: FormData) {
     
       if (validatedData.riskAssessment === "I do not confirm") {
           // This case should be handled on the client, but as a safeguard:
-          await sendEmail({
-             to: validatedData.requesterEmail,
-             subject: `PTW Submission Blocked: ${validatedData.siteId}`,
-             html: `<h1>Permit Request Blocked</h1><p>Your request for site <strong>${validatedData.siteId}</strong> was blocked because the risk assessment was not confirmed.</p><p>Please resubmit the form and confirm the risk assessment.</p>`,
-          });
+          console.log("Risk assessment not confirmed, submission blocked on server.");
           return { success: false, error: "Permit rejected: Risk assessment must be confirmed." };
       }
       
@@ -137,38 +133,10 @@ export async function submitPermit(formData: FormData) {
         return { success: false, error: `Failed to save permit to database: ${errorMessage}` };
       }
     
-      // 6. Email Sending
-      try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rvsptwapp.vercel.app';
-        const approvalLink = `${baseUrl}/approve/${approvalToken}`;
-    
-        // Send to Approver
-        await sendEmail({
-          to: validatedData.approverEmail,
-          subject: `PTW Approval Request: ${trackingId}`,
-          html: `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`,
-        });
-    
-        // Send to Requester
-        await sendEmail({
-          to: validatedData.requesterEmail,
-          subject: `PTW Submission Confirmation: ${trackingId}`,
-          html: `<h1>Permit Request Submitted Successfully</h1><p>Your request with Tracking ID <strong>${trackingId}</strong> has been submitted.</p><p>Track its status here: <a href="${baseUrl}/track?id=${encodeURIComponent(trackingId)}">Track Submission</a></p>`,
-        });
-    
-      } catch (error) {
-        console.error(`Email sending error for ${trackingId}:`, error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown email error occurred.";
-        // The data was saved, so we return a success with a warning.
-        return { 
-            success: true, 
-            trackingId, 
-            warning: `Permit was saved, but failed to send notification emails: ${errorMessage}` 
-        };
-      }
+      // EMAIL SENDING IS NOW HANDLED ON THE CLIENT VIA MAILTO LINKS
       
       // 7. Final Success
-      return { success: true, trackingId };
+      return { success: true, trackingId, approverEmail: validatedData.approverEmail, requesterEmail: validatedData.requesterEmail };
 
   } catch (error) {
       if (error instanceof StorageError) {
@@ -221,9 +189,6 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
 
         const permitDoc = querySnapshot.docs[0];
         const permitData = permitDoc.data() as Permit;
-        const requesterEmail = permitData.data.requesterEmail;
-        const trackingId = permitData.trackingId;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rvsptwapp.vercel.app';
 
         if (permitData.status !== "Pending") {
             return { success: false, error: "This permit has already been actioned." };
@@ -240,13 +205,15 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
             approvalToken: crypto.randomUUID(), 
         };
 
+        let aiSuggestions = null;
         if (status === "Rejected") {
             updateData.rejectionRemarks = remarks;
              try {
                 const formDetails = JSON.stringify(permitData.data, null, 2);
-                const aiSuggestions = await analyzeRejectionRemarks({ formDetails, rejectionRemarks: remarks! });
-                console.log("AI Suggested Corrections:", aiSuggestions.suggestedCorrections);
-                updateData.aiSuggestions = aiSuggestions.suggestedCorrections;
+                const aiResponse = await analyzeRejectionRemarks({ formDetails, rejectionRemarks: remarks! });
+                console.log("AI Suggested Corrections:", aiResponse.suggestedCorrections);
+                updateData.aiSuggestions = aiResponse.suggestedCorrections;
+                aiSuggestions = aiResponse.suggestedCorrections; // pass back to client
             } catch (aiError) {
                 console.error("AI analysis failed:", aiError);
             }
@@ -254,30 +221,11 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         
         await updateDoc(doc(db, "permits", permitDoc.id), updateData);
         
-        console.log(`Permit ${trackingId} has been ${status}.`);
+        console.log(`Permit ${permitData.trackingId} has been ${status}.`);
         
-        // Send status update email to requester
-        const emailHtml = `
-            <h1>Permit Status Updated</h1>
-            <p>The status for your permit with Tracking ID <strong>${trackingId}</strong> has been updated to: <strong>${status}</strong>.</p>
-            ${status === "Approved" ? `<p>Your permit is now approved.</p>` : ''}
-            ${status === "Rejected" ? `
-                <p><strong>Rejection Remarks:</strong><br/>${remarks}</p>
-                ${updateData.aiSuggestions ? `<p><strong>AI-Powered Suggestions for Resubmission:</strong><br/>${updateData.aiSuggestions}</p>` : ''}
-            ` : ''}
-            <p>You can view the latest status here:</p>
-            <a href="${baseUrl}/track?id=${encodeURIComponent(trackingId)}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
-                Track Submission
-            </a>
-        `;
+        // EMAIL SENDING IS NOW HANDLED ON THE CLIENT VIA MAILTO LINKS
         
-        await sendEmail({
-            to: requesterEmail,
-            subject: `PTW Status Update for ${trackingId}: ${status}`,
-            html: emailHtml
-        });
-
-        return { success: true, status };
+        return { success: true, status, aiSuggestions };
     } catch (error) {
         console.error("Error updating permit status:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
