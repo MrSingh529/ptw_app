@@ -1,3 +1,4 @@
+
 import { Suspense } from 'react';
 import { AdminClient } from './admin-client';
 import { AuthGuard } from '@/components/auth-guard';
