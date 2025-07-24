@@ -118,19 +118,36 @@ export async function submitPermit(formData: FormData) {
       const docRef = await addDoc(collection(db, "permits"), permitDocData);
       console.log(`Permit data saved to Firestore with ID: ${docRef.id}. Tracking ID: ${trackingId}`);
 
-      // Trigger approval request email via Nodemailer
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+      if (!baseUrl) {
+          const errorMsg = "NEXT_PUBLIC_BASE_URL environment variable is not set. Emails will not have correct links.";
+          console.error(errorMsg);
+          return { success: false, error: errorMsg };
+      }
+
+      const trackingLink = `${baseUrl}/track?id=${encodeURIComponent(trackingId)}`;
+
+      // --- Email to Approver ---
       const approvalLink = `${baseUrl}/approve/${approvalToken}`;
-      const subject = `PTW Approval Request: ${trackingId}`;
-      const html = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+      const approverSubject = `PTW Approval Request: ${trackingId}`;
+      const approverHtml = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
       
       try {
-        await sendEmail({ to: validatedData.approverEmail, subject, html });
+        await sendEmail({ to: validatedData.approverEmail, subject: approverSubject, html: approverHtml });
       } catch (emailError) {
-        console.error("Email sending failed but submission was successful:", emailError);
-        // Do not block the user flow if email fails. Log it for debugging.
+        console.error("Failed to send approval email but submission was successful:", emailError);
       }
       
+      // --- Email to Requester ---
+      const requesterSubject = `PTW Submission Confirmation: ${trackingId}`;
+      const requesterHtml = `<h1>Submission Confirmed</h1><p>Your permit request with Tracking ID <strong>${trackingId}</strong> has been successfully submitted.</p><p>You will be notified once the approver takes action. You can track the status of your request here: <a href="${trackingLink}">Track Submission</a></p>`;
+
+      try {
+        await sendEmail({ to: validatedData.requesterEmail, subject: requesterSubject, html: requesterHtml });
+      } catch (emailError) {
+         console.error("Failed to send confirmation email but submission was successful:", emailError);
+      }
+
       return { success: true, trackingId };
 
   } catch (error) {
@@ -217,8 +234,12 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         
         console.log(`Permit ${permitData.trackingId} has been ${status}.`);
         
-        // Trigger notification email via Nodemailer
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+        if (!baseUrl) {
+            console.error("NEXT_PUBLIC_BASE_URL environment variable is not set. Email notification will not have correct links.");
+            return { success: true, status }; // Return success, but log error
+        }
+
         const subject = `PTW Status Update for ${permitData.trackingId}: ${status}`;
         const emailBody = `
           <h1>Permit Status Updated</h1>
