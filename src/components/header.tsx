@@ -21,9 +21,9 @@ export function Header() {
              <Link href="/" className="mr-6 flex items-center space-x-2 pl-4">
               <Image 
                 src="/logo.png" 
-                alt="Surbक्षा PTW Logo" 
-                width={50} 
-                height={50} 
+                alt="PermitFlow Logo" 
+                width={100} 
+                height={120} 
                 className="object-contain"
               />
             </Link>
