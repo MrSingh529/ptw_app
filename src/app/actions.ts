@@ -46,6 +46,57 @@ async function uploadFile(file: File, trackingId: string): Promise<string> {
     return downloadURL;
 }
 
+// --- Email Template ---
+const createEmailTemplate = (title: string, content: string, actionUrl?: string, actionText?: string) => {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://rvsptwapp.vercel.app';
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+              body { margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, sans-serif; }
+              .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+              .header { background-color: #000000; padding: 20px; text-align: center; }
+              .header img { max-width: 150px; }
+              .content { padding: 30px; color: #334155; line-height: 1.6; }
+              .content h1 { font-size: 24px; color: #0f172a; margin-top: 0; }
+              .content p { margin: 10px 0; }
+              .content strong { color: #1e293b; }
+              .button-container { text-align: center; margin: 30px 0; }
+              .button { background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; }
+              .footer { background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; }
+              .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 20px; margin-top: 20px; }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <div class="header">
+                  <img src="${baseUrl}/logo.png" alt="PermitFlow Logo">
+              </div>
+              <div class="content">
+                  <h1>${title}</h1>
+                  ${content}
+                  ${actionUrl && actionText ? `
+                  <div class="button-container">
+                      <a href="${actionUrl}" class="button">${actionText}</a>
+                  </div>
+                  ` : ''}
+                  <p>If you have any questions, please contact our support team.</p>
+                  <p>Thanks,<br/>The PermitFlow Team</p>
+              </div>
+              <div class="footer">
+                  <p>&copy; ${new Date().getFullYear()} PermitFlow. All rights reserved.</p>
+                  <p>Developed with Care & ❤️ by Harpinder Singh.</p>
+              </div>
+          </div>
+      </body>
+      </html>
+    `;
+};
+
+
 
 export async function submitPermit(formData: FormData, originalTrackingId?: string) {
   try {
@@ -132,20 +183,25 @@ export async function submitPermit(formData: FormData, originalTrackingId?: stri
 
       // --- Email to Approver ---
       const approvalLink = `${baseUrl}/approve/${approvalToken}`;
-      let approverSubject, approverHtml;
+      let approverSubject, approverContent;
 
       if (originalTrackingId) {
           approverSubject = `RESUBMITTED PTW Approval Request: ${trackingId}`;
-          approverHtml = `<h1>Resubmitted Permit-to-Work Approval Request</h1>
-                        <p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p>
-                        <p>This is a resubmission for a previously rejected permit with Tracking ID: <strong>${originalTrackingId}</strong>.</p>
-                        <p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+          approverContent = `
+            <p>A resubmitted permit-to-work request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p>
+            <p>This is a resubmission for a previously rejected permit: <strong>${originalTrackingId}</strong>.</p>
+            <p>Please review the details and take action.</p>
+          `;
       } else {
           approverSubject = `PTW Approval Request: ${trackingId}`;
-          approverHtml = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+          approverContent = `
+            <p>A new permit-to-work request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p>
+            <p>Please review the details and take action.</p>
+          `;
       }
       
       try {
+        const approverHtml = createEmailTemplate('Permit Approval Request', approverContent, approvalLink, 'Review Request');
         await sendEmail({ to: validatedData.approverEmail, subject: approverSubject, html: approverHtml });
       } catch (emailError) {
         console.error("Failed to send approval email but submission was successful:", emailError);
@@ -153,9 +209,13 @@ export async function submitPermit(formData: FormData, originalTrackingId?: stri
       
       // --- Email to Requester ---
       const requesterSubject = `PTW Submission Confirmation: ${trackingId}`;
-      const requesterHtml = `<h1>Submission Confirmed</h1><p>Your permit request with Tracking ID <strong>${trackingId}</strong> has been successfully submitted.</p><p>You will be notified once the approver takes action. You can track the status of your request here: <a href="${trackingLink}">Track Submission</a></p>`;
+      const requesterContent = `
+        <p>Your permit request with Tracking ID <strong>${trackingId}</strong> has been successfully submitted.</p>
+        <p>You will be notified once the approver takes action. You can track the status of your request using the button below.</p>
+      `;
 
       try {
+        const requesterHtml = createEmailTemplate('Submission Confirmed', requesterContent, trackingLink, 'Track Submission');
         await sendEmail({ to: validatedData.requesterEmail, subject: requesterSubject, html: requesterHtml });
       } catch (emailError) {
          console.error("Failed to send confirmation email but submission was successful:", emailError);
@@ -254,20 +314,36 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         }
 
         const subject = `PTW Status Update for ${permitData.trackingId}: ${status}`;
-        const emailBody = `
-          <h1>Permit Status Updated</h1>
+        let emailContent = `
           <p>The status for your permit with Tracking ID <strong>${permitData.trackingId}</strong> has been updated to: <strong>${status}</strong>.</p>
-          ${status === "Approved" ? `<p>Your permit is now approved.</p>` : ''}
-          ${status === "Rejected" ? `
-              <p><strong>Rejection Remarks:</strong><br/>${remarks}</p>
-              ${aiSuggestions ? `<p><strong>AI-Powered Suggestions for Resubmission:</strong><br/>${aiSuggestions}</p>` : ''}
-          ` : ''}
-          <p>You can view the latest status here:</p>
-          <a href="${baseUrl}/track?id=${encodeURIComponent(permitData.trackingId)}">Track Submission</a>
         `;
 
+        if (status === "Approved") {
+            emailContent += `<p>Your permit is now approved and you may proceed with the work as per the agreed schedule.</p>`;
+        }
+        
+        if (status === "Rejected") {
+            emailContent += `
+              <div class="card">
+                  <strong>Rejection Remarks:</strong>
+                  <p>${remarks}</p>
+              </div>
+            `;
+            if (aiSuggestions) {
+                emailContent += `
+                  <div class="card" style="background-color: #e0f2fe; border-color: #bae6fd;">
+                      <strong>AI-Powered Suggestions for Resubmission:</strong>
+                      <p style="white-space: pre-wrap;">${aiSuggestions}</p>
+                  </div>
+                `;
+            }
+        }
+
+        const trackingLink = `${baseUrl}/track?id=${encodeURIComponent(permitData.trackingId)}`;
+
         try {
-            await sendEmail({ to: permitData.data.requesterEmail, subject, html: emailBody });
+            const emailHtml = createEmailTemplate(`Permit ${status}`, emailContent, trackingLink, 'View Latest Status');
+            await sendEmail({ to: permitData.data.requesterEmail, subject, html: emailHtml });
         } catch(emailError) {
             console.error("Email sending failed but status update was successful:", emailError);
             // Do not block user flow if email fails.
