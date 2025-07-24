@@ -200,6 +200,11 @@ export function PtwForm() {
             valuesToPopulate.permissionDate = new Date();
         }
         
+        // Fix for the boolean conversion
+        if (valuesToPopulate.declaration && typeof valuesToPopulate.declaration === 'string') {
+          valuesToPopulate.declaration = valuesToPopulate.declaration.toLowerCase() === 'true';
+        }
+
         form.reset(valuesToPopulate as Partial<ClientPtwFormValues>);
         
       } catch (error) {
