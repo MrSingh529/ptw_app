@@ -22,8 +22,8 @@ export function Header() {
               <Image 
                 src="/logo.png" 
                 alt="PermitFlow Logo" 
-                width={100} 
-                height={120} 
+                width={75} 
+                height={75} 
                 className="object-contain"
               />
             </Link>
