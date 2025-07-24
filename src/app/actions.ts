@@ -11,6 +11,7 @@ import { ref, uploadBytes, getDownloadURL, StorageError } from "firebase/storage
 import { FirebaseError } from "firebase/app";
 import { sendEmail } from "@/lib/email";
 
+
 // Helper to convert Firestore Timestamps
 const convertPermitDates = (permit: any): Permit => {
     const data = permit.data;
@@ -48,7 +49,6 @@ async function uploadFile(file: File, trackingId: string): Promise<string> {
 
 export async function submitPermit(formData: FormData) {
   try {
-      // 1. Extract and build data object from FormData
       const rawData: Record<string, any> = {};
       const fileKeys = ['uploadedFiles.ppe', 'uploadedFiles.team', 'uploadedFiles.certifications', 'uploadedFiles.siteConditions'];
       const files: Record<string, File> = {};
@@ -68,16 +68,13 @@ export async function submitPermit(formData: FormData) {
           }
       }
       
-      // Coerce types for validation
       const dataToValidate = {
         ...rawData,
         teamMembers: JSON.parse(rawData.teamMembers as string),
         declaration: rawData.declaration === 'true',
-        // We will validate file URLs later, so add empty placeholders for now
         uploadedFiles: {},
       };
       
-      // 2. Validation (without file URLs first)
       const validationResult = ptwSchema.safeParse(dataToValidate);
       if (!validationResult.success) {
         const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
@@ -87,18 +84,15 @@ export async function submitPermit(formData: FormData) {
       const validatedData = validationResult.data;
     
       if (validatedData.riskAssessment === "I do not confirm") {
-          // This case should be handled on the client, but as a safeguard:
           console.log("Risk assessment not confirmed, submission blocked on server.");
           return { success: false, error: "Permit rejected: Risk assessment must be confirmed." };
       }
       
-      // 3. Data Preparation
       const approvalToken = crypto.randomUUID();
       const financialYear = getFinancialYear();
       const uniqueId = crypto.randomUUID().substring(0, 6).toUpperCase();
       const trackingId = `PTW/RV/${validatedData.siteId.toUpperCase()}/${financialYear}/${uniqueId}`;
       
-      // 4. File Uploads
       const uploadedFiles = {
           ppe: await uploadFile(files.ppe, trackingId),
           team: await uploadFile(files.team, trackingId),
@@ -108,7 +102,7 @@ export async function submitPermit(formData: FormData) {
 
       const permitDataToSave = {
           ...validatedData,
-          uploadedFiles, // Replace with download URLs
+          uploadedFiles, 
           permissionDate: Timestamp.fromDate(new Date(validatedData.permissionDate))
       };
     
@@ -121,22 +115,23 @@ export async function submitPermit(formData: FormData) {
         updatedAt: serverTimestamp(),
       };
     
-      // 5. Database Write
-      let docId;
-      try {
-        const docRef = await addDoc(collection(db, "permits"), permitDocData);
-        docId = docRef.id;
-        console.log(`Permit data saved to Firestore with ID: ${docId}. Tracking ID: ${trackingId}`);
-      } catch (error) {
-        console.error("Firestore write error:", error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown database error occurred.";
-        return { success: false, error: `Failed to save permit to database: ${errorMessage}` };
-      }
-    
-      // EMAIL SENDING IS NOW HANDLED ON THE CLIENT VIA MAILTO LINKS
+      const docRef = await addDoc(collection(db, "permits"), permitDocData);
+      console.log(`Permit data saved to Firestore with ID: ${docRef.id}. Tracking ID: ${trackingId}`);
+
+      // Trigger approval request email via Nodemailer
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+      const approvalLink = `${baseUrl}/approve/${approvalToken}`;
+      const subject = `PTW Approval Request: ${trackingId}`;
+      const html = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
       
-      // 7. Final Success
-      return { success: true, trackingId, approverEmail: validatedData.approverEmail, requesterEmail: validatedData.requesterEmail };
+      try {
+        await sendEmail({ to: validatedData.approverEmail, subject, html });
+      } catch (emailError) {
+        console.error("Email sending failed but submission was successful:", emailError);
+        // Do not block the user flow if email fails. Log it for debugging.
+      }
+      
+      return { success: true, trackingId };
 
   } catch (error) {
       if (error instanceof StorageError) {
@@ -201,7 +196,6 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         const updateData: any = {
             status,
             updatedAt: serverTimestamp(),
-            // Make the token unusable after first action
             approvalToken: crypto.randomUUID(), 
         };
 
@@ -213,7 +207,7 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
                 const aiResponse = await analyzeRejectionRemarks({ formDetails, rejectionRemarks: remarks! });
                 console.log("AI Suggested Corrections:", aiResponse.suggestedCorrections);
                 updateData.aiSuggestions = aiResponse.suggestedCorrections;
-                aiSuggestions = aiResponse.suggestedCorrections; // pass back to client
+                aiSuggestions = aiResponse.suggestedCorrections;
             } catch (aiError) {
                 console.error("AI analysis failed:", aiError);
             }
@@ -223,9 +217,30 @@ export async function updatePermitStatus(token: string, status: "Approved" | "Re
         
         console.log(`Permit ${permitData.trackingId} has been ${status}.`);
         
-        // EMAIL SENDING IS NOW HANDLED ON THE CLIENT VIA MAILTO LINKS
+        // Trigger notification email via Nodemailer
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:9002';
+        const subject = `PTW Status Update for ${permitData.trackingId}: ${status}`;
+        const emailBody = `
+          <h1>Permit Status Updated</h1>
+          <p>The status for your permit with Tracking ID <strong>${permitData.trackingId}</strong> has been updated to: <strong>${status}</strong>.</p>
+          ${status === "Approved" ? `<p>Your permit is now approved.</p>` : ''}
+          ${status === "Rejected" ? `
+              <p><strong>Rejection Remarks:</strong><br/>${remarks}</p>
+              ${aiSuggestions ? `<p><strong>AI-Powered Suggestions for Resubmission:</strong><br/>${aiSuggestions}</p>` : ''}
+          ` : ''}
+          <p>You can view the latest status here:</p>
+          <a href="${baseUrl}/track?id=${encodeURIComponent(permitData.trackingId)}">Track Submission</a>
+        `;
+
+        try {
+            await sendEmail({ to: permitData.data.requesterEmail, subject, html: emailBody });
+        } catch(emailError) {
+            console.error("Email sending failed but status update was successful:", emailError);
+            // Do not block user flow if email fails.
+        }
         
-        return { success: true, status, aiSuggestions };
+        return { success: true, status };
+
     } catch (error) {
         console.error("Error updating permit status:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
@@ -276,11 +291,11 @@ export async function getAllPermits() {
                 trackingId: convertedData.trackingId,
                 status: convertedData.status,
                 createdAt: convertedData.createdAt,
-                updatedAt: convertedData.updatedAt, // Add this for calculations
-                ...convertedData.data, // Flatten all data fields for export
-                teamMembers: convertedData.data.teamMembers.map(m => `${m.name} (${m.farmOrToclip})`).join('; '), // Convert array to string for CSV
-                workTypes: convertedData.data.workTypes.join(', '), // Convert array to string for CSV
-                toolBoxTalks: convertedData.data.toolBoxTalks.join(', '), // Convert array to string for CSV
+                updatedAt: convertedData.updatedAt, 
+                ...convertedData.data, 
+                teamMembers: convertedData.data.teamMembers.map(m => `${m.name} (${m.farmOrToclip})`).join('; '), 
+                workTypes: convertedData.data.workTypes.join(', '), 
+                toolBoxTalks: convertedData.data.toolBoxTalks.join(', '), 
                 permissionDate: new Date(convertedData.data.permissionDate).toLocaleDateString(),
             };
         });
@@ -298,7 +313,6 @@ export async function resubmitPermit(formData: FormData) {
             return { success: false, error: "Original tracking ID is missing for resubmission." };
         }
         
-        // Find the original permit to mark as resubmitted
         const q = query(collection(db, "permits"), where("trackingId", "==", originalTrackingId.toUpperCase()));
         const querySnapshot = await getDocs(q);
         
@@ -310,7 +324,6 @@ export async function resubmitPermit(formData: FormData) {
             });
         }
 
-        // Submit the new permit
         return await submitPermit(formData);
 
     } catch (error) {

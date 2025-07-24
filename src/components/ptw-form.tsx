@@ -173,7 +173,6 @@ export function PtwForm() {
             }
         });
 
-        // Handle complex types
         if (valuesToPopulate.teamMembers && typeof valuesToPopulate.teamMembers === 'string') {
            try {
               valuesToPopulate.teamMembers = JSON.parse(valuesToPopulate.teamMembers);
@@ -201,7 +200,6 @@ export function PtwForm() {
             valuesToPopulate.permissionDate = new Date();
         }
         
-        // Reset the form with the populated values.
         form.reset(valuesToPopulate as Partial<ClientPtwFormValues>);
         
       } catch (error) {
@@ -258,7 +256,6 @@ export function PtwForm() {
         };
 
         try {
-            // Compress and append files
             const compressedPpe = await imageCompression(data.uploadedFiles.ppe, compressionOptions);
             const compressedTeam = await imageCompression(data.uploadedFiles.team, compressionOptions);
             const compressedCerts = await imageCompression(data.uploadedFiles.certifications, compressionOptions);
@@ -269,7 +266,6 @@ export function PtwForm() {
             formData.append('uploadedFiles.certifications', compressedCerts, data.uploadedFiles.certifications.name);
             formData.append('uploadedFiles.siteConditions', compressedSite, data.uploadedFiles.siteConditions.name);
 
-            // Append all other simple key-value pairs
             Object.entries(data).forEach(([key, value]) => {
                 if (key === 'teamMembers') {
                     formData.append(key, JSON.stringify(value));
@@ -280,7 +276,6 @@ export function PtwForm() {
                 }
             });
 
-            // Append arrays
             data.workTypes.forEach(wt => formData.append('workTypes', wt));
             data.toolBoxTalks.forEach(tt => formData.append('toolBoxTalks', tt));
           
@@ -295,18 +290,10 @@ export function PtwForm() {
             if (result.success && result.trackingId) {
                 toast({
                     title: "Permit Submitted",
-                    description: `Your tracking ID is ${result.trackingId}.`,
+                    description: `Your tracking ID is ${result.trackingId}. An approval request has been sent.`,
                 });
                 
-                // Redirect to a page that will handle the mailto links
-                const query = new URLSearchParams({
-                  trackingId: result.trackingId,
-                  approverEmail: result.approverEmail || '',
-                  requesterEmail: result.requesterEmail || '',
-                  approvalToken: result.approvalToken || ''
-                });
-
-                router.push(`/submitted/${encodeURIComponent(result.trackingId)}?${query.toString()}`);
+                router.push(`/submitted/${encodeURIComponent(result.trackingId)}`);
 
             } else {
                 toast({

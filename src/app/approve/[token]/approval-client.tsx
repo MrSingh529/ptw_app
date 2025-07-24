@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -46,7 +47,6 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
   const handleAction = (status: "Approved" | "Rejected") => {
     setError(null);
     startTransition(async () => {
-      // First, update the status in the database
       const response = await updatePermitStatus(token, status, rejectionRemarks);
       
       if (response.success) {
@@ -54,33 +54,15 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
         setFinalStatus(response.status);
         toast({
           title: "Action Recorded",
-          description: `Permit has been ${response.status}. Please send the notification email.`,
+          description: `Permit has been ${response.status} and a notification email has been sent.`,
         });
-
-        // Now, prepare and trigger the mailto link
-        const requesterEmail = permit.data.requesterEmail;
-        const trackingId = permit.trackingId;
-        const subject = `PTW Status Update for ${trackingId}: ${status}`;
-        
-        const emailBody = `
-          <h1>Permit Status Updated</h1>
-          <p>The status for your permit with Tracking ID <strong>${trackingId}</strong> has been updated to: <strong>${status}</strong>.</p>
-          ${status === "Approved" ? `<p>Your permit is now approved.</p>` : ''}
-          ${status === "Rejected" ? `
-              <p><strong>Rejection Remarks:</strong><br/>${rejectionRemarks}</p>
-              ${response.aiSuggestions ? `<p><strong>AI-Powered Suggestions for Resubmission:</strong><br/>${response.aiSuggestions}</p>` : ''}
-          ` : ''}
-          <p>You can view the latest status here:</p>
-          <a href="https://rvsptwapp.vercel.app/track?id=${encodeURIComponent(trackingId)}">Track Submission</a>
-        `;
-
-        const mailtoLink = `mailto:${requesterEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-        
-        // Open the user's default email client
-        window.location.href = mailtoLink;
-
       } else {
         setError(response.error || "An unknown error occurred.");
+         toast({
+          variant: "destructive",
+          title: "Action Failed",
+          description: response.error || "Could not update the permit status.",
+        });
       }
     });
   };
@@ -93,7 +75,7 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
             {finalStatus === 'Approved' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
             <AlertTitle className="text-xl font-bold">Action Complete</AlertTitle>
             <AlertDescription className="text-base">
-            The permit has been successfully <strong>{finalStatus}</strong>. Your email client should have opened with a pre-filled message to notify the requester. Please review and send it.
+            The permit has been successfully <strong>{finalStatus}</strong>. A notification has been sent to the requester.
             </AlertDescription>
         </Alert>
     );
@@ -171,7 +153,7 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
       <Card>
         <CardHeader>
             <CardTitle>Approval Action</CardTitle>
-            <CardDescription>Review the details above and approve or reject the permit request. This will open an email to notify the requester.</CardDescription>
+            <CardDescription>Review the details above and approve or reject the permit request. A notification email will be sent automatically.</CardDescription>
         </CardHeader>
         <CardFooter className="flex justify-end gap-4">
             {error && <p className="text-sm text-destructive mr-auto">{error}</p>}
@@ -186,7 +168,7 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
                     <DialogHeader>
                         <DialogTitle>Reject Permit Request</DialogTitle>
                         <DialogDescription>
-                            Please provide mandatory remarks for rejecting this permit. This will be added to the email.
+                            Please provide mandatory remarks for rejecting this permit. This will be sent to the requester.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -195,7 +177,7 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
                     </div>
                     <DialogFooter>
                         <Button variant="destructive" onClick={() => handleAction('Rejected')} disabled={isPending || !rejectionRemarks}>
-                            Submit Rejection & Prepare Email
+                            Submit Rejection
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -203,7 +185,7 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
 
             <Button onClick={() => handleAction('Approved')} disabled={isPending} className="bg-green-600 hover:bg-green-700">
                 <ThumbsUp className="mr-2 h-4 w-4"/>
-                Approve & Prepare Email
+                Approve
             </Button>
         </CardFooter>
       </Card>
