@@ -13,7 +13,7 @@ export function AppFooter() {
                         <Link href="mailto:richa.babbar@rvsolutions.in">Process Support</Link>
                     </Button>
                 </div>
-                <p>Developed with Care & ❤️ by CEO Office.</p>
+                <p>Developed with Care & ❤️ by Harpinder Singh.</p>
             </div>
       </footer>
     );

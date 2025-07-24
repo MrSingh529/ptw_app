@@ -20,8 +20,10 @@ const fontSpaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "PermitFlow",
   description: "A streamlined permit-to-work approval web app.",
+  manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
+    icon: "/icon-192x192.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
