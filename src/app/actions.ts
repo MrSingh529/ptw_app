@@ -58,7 +58,7 @@ const createEmailTemplate = (title: string, content: string, actionUrl?: string,
           <style>
               body { margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, sans-serif; }
               .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
-              .header { background-color: #000000; padding: 20px; text-align: center; }
+              .header { background-color: #ffffff; padding: 20px; text-align: center; }
               .header img { max-width: 150px; }
               .content { padding: 30px; color: #334155; line-height: 1.6; }
               .content h1 { font-size: 24px; color: #0f172a; margin-top: 0; }
