@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { regionCircleMap, PermitStatus } from "@/lib/constants";
-import { ResponsiveContainer, BarChart, XAxis, YAxis, Bar, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, BarChart, XAxis, YAxis, Bar, CartesianGrid, Tooltip } from 'recharts';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, BarChart as BarChartIcon, Clock, ThumbsUp, Download } from "lucide-react";
@@ -302,7 +302,7 @@ export function AdminClient() {
                             <TableRow>
                                 <TableHead>Tracking ID</TableHead>
                                 <TableHead>Site Name</TableHead>
-                                <TableHead>Region</TableHead>
+                                <TableHead>Approver Email</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Submitted At</TableHead>
                             </TableRow>
@@ -322,7 +322,7 @@ export function AdminClient() {
                                 <TableRow key={permit.trackingId}>
                                     <TableCell className="font-mono">{permit.trackingId}</TableCell>
                                     <TableCell>{permit.siteName}</TableCell>
-                                    <TableCell>{permit.region} / {permit.circle}</TableCell>
+                                    <TableCell>{permit.approverEmail}</TableCell>
                                     <TableCell>{getStatusBadge(permit.status)}</TableCell>
                                     <TableCell>{new Date(permit.createdAt).toLocaleDateString()}</TableCell>
                                 </TableRow>
@@ -350,6 +350,13 @@ export function AdminClient() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                <Tooltip
+                                    cursor={{ fill: 'hsl(var(--muted))' }}
+                                    contentStyle={{ 
+                                        backgroundColor: 'hsl(var(--background))',
+                                        border: '1px solid hsl(var(--border))' 
+                                    }}
+                                />
                                 <Bar dataKey="approved" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} name="Approved"/>
                                 <Bar dataKey="rejected" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} name="Rejected"/>
                             </BarChart>

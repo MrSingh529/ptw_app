@@ -122,7 +122,7 @@ export async function submitPermit(formData: FormData) {
       if (!baseUrl) {
           const errorMsg = "NEXT_PUBLIC_BASE_URL environment variable is not set. Emails will not have correct links.";
           console.error(errorMsg);
-          return { success: false, error: errorMsg };
+          // Don't block the submission, but log the error. The core process is saving the permit.
       }
 
       const trackingLink = `${baseUrl}/track?id=${encodeURIComponent(trackingId)}`;
@@ -345,6 +345,7 @@ export async function resubmitPermit(formData: FormData) {
             });
         }
 
+        // After updating the old permit, submit the new one.
         return await submitPermit(formData);
 
     } catch (error) {
