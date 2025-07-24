@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { Header } from "@/components/header";
 import { AuthProvider } from "@/hooks/use-auth";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const fontInter = Inter({
   subsets: ["latin"],
@@ -19,7 +20,7 @@ const fontSpaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "PermitFlow",
-  description: "A streamlined permit-to-work approval web app.",
+  description: "Automating Safety, Ensuring Compliance.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192x192.png",
@@ -41,13 +42,20 @@ export default function RootLayout({
           fontSpaceGrotesk.variable
         )}
       >
-        <AuthProvider>
-          <div className="relative flex min-h-screen flex-col">
-            <Header />
-            <main className="flex-1">{children}</main>
-          </div>
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <div className="relative flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1">{children}</main>
+            </div>
+            <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
