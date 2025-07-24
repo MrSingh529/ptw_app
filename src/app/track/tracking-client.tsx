@@ -28,6 +28,8 @@ interface StatusResult {
   rejectionRemarks?: string;
   aiSuggestions?: string;
   data: PtwFormValues;
+  resubmittedFrom?: string;
+  resubmittedTo?: string;
 }
 
 export function TrackingClient() {
@@ -154,6 +156,23 @@ export function TrackingClient() {
                 <p className="font-semibold text-amber-600">
                   Pending for: {daysPending} day{daysPending === 1 ? '' : 's'}
                 </p>
+              )}
+
+               {result.resubmittedFrom && (
+                    <div className="pt-2">
+                      <p><strong>Note:</strong> This permit is a resubmission for the original permit with ID <span className="font-mono">{result.resubmittedFrom}</span>.</p>
+                    </div>
+              )}
+
+              {result.resubmittedTo && (
+                    <div className="pt-2">
+                      <p><strong>Note:</strong> This permit was resubmitted and replaced by a new permit with ID <span className="font-mono">{result.resubmittedTo}</span>.</p>
+                       <Button asChild variant="link" size="sm" className="px-0 h-auto">
+                           <Link href={`/track?id=${result.resubmittedTo}`}>
+                                View New Submission
+                           </Link>
+                       </Button>
+                    </div>
               )}
 
               {result.status === "Rejected" && (

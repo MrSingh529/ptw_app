@@ -47,7 +47,7 @@ async function uploadFile(file: File, trackingId: string): Promise<string> {
 }
 
 
-export async function submitPermit(formData: FormData) {
+export async function submitPermit(formData: FormData, originalTrackingId?: string) {
   try {
       const rawData: Record<string, any> = {};
       const fileKeys = ['uploadedFiles.ppe', 'uploadedFiles.team', 'uploadedFiles.certifications', 'uploadedFiles.siteConditions'];
@@ -106,7 +106,7 @@ export async function submitPermit(formData: FormData) {
           permissionDate: Timestamp.fromDate(new Date(validatedData.permissionDate))
       };
     
-      const permitDocData = {
+      const permitDocData: any = {
         trackingId,
         status: "Pending" as PermitStatus,
         data: permitDataToSave,
@@ -114,6 +114,10 @@ export async function submitPermit(formData: FormData) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+
+      if (originalTrackingId) {
+        permitDocData.resubmittedFrom = originalTrackingId;
+      }
     
       const docRef = await addDoc(collection(db, "permits"), permitDocData);
       console.log(`Permit data saved to Firestore with ID: ${docRef.id}. Tracking ID: ${trackingId}`);
@@ -122,15 +126,24 @@ export async function submitPermit(formData: FormData) {
       if (!baseUrl) {
           const errorMsg = "NEXT_PUBLIC_BASE_URL environment variable is not set. Emails will not have correct links.";
           console.error(errorMsg);
-          // Don't block the submission, but log the error. The core process is saving the permit.
       }
 
       const trackingLink = `${baseUrl}/track?id=${encodeURIComponent(trackingId)}`;
 
       // --- Email to Approver ---
       const approvalLink = `${baseUrl}/approve/${approvalToken}`;
-      const approverSubject = `PTW Approval Request: ${trackingId}`;
-      const approverHtml = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+      let approverSubject, approverHtml;
+
+      if (originalTrackingId) {
+          approverSubject = `RESUBMITTED PTW Approval Request: ${trackingId}`;
+          approverHtml = `<h1>Resubmitted Permit-to-Work Approval Request</h1>
+                        <p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p>
+                        <p>This is a resubmission for a previously rejected permit with Tracking ID: <strong>${originalTrackingId}</strong>.</p>
+                        <p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+      } else {
+          approverSubject = `PTW Approval Request: ${trackingId}`;
+          approverHtml = `<h1>Permit-to-Work Approval Request</h1><p>A new permit request with Tracking ID <strong>${trackingId}</strong> requires your approval.</p><p>Please click the link to review: <a href="${approvalLink}">View Request</a></p>`;
+      }
       
       try {
         await sendEmail({ to: validatedData.approverEmail, subject: approverSubject, html: approverHtml });
@@ -148,7 +161,7 @@ export async function submitPermit(formData: FormData) {
          console.error("Failed to send confirmation email but submission was successful:", emailError);
       }
 
-      return { success: true, trackingId };
+      return { success: true, trackingId, newDocId: docRef.id };
 
   } catch (error) {
       if (error instanceof StorageError) {
@@ -291,7 +304,9 @@ export async function getPermitStatus(trackingId: string) {
             lastUpdatedAt: convertedData.updatedAt,
             rejectionRemarks: convertedData.rejectionRemarks,
             aiSuggestions: (convertedData as any).aiSuggestions,
-            data: convertedData.data
+            data: convertedData.data,
+            resubmittedFrom: convertedData.resubmittedFrom,
+            resubmittedTo: convertedData.resubmittedTo,
         };
     } catch(error) {
         console.error("Error fetching permit status:", error);
@@ -313,6 +328,8 @@ export async function getAllPermits() {
                 status: convertedData.status,
                 createdAt: convertedData.createdAt,
                 updatedAt: convertedData.updatedAt, 
+                resubmittedFrom: convertedData.resubmittedFrom || 'No',
+                resubmittedTo: convertedData.resubmittedTo || 'N/A',
                 ...convertedData.data, 
                 teamMembers: convertedData.data.teamMembers.map(m => `${m.name} (${m.farmOrToclip})`).join('; '), 
                 workTypes: convertedData.data.workTypes.join(', '), 
@@ -333,7 +350,15 @@ export async function resubmitPermit(formData: FormData) {
         if (!originalTrackingId) {
             return { success: false, error: "Original tracking ID is missing for resubmission." };
         }
+
+        // Submit the new permit first to get its new tracking ID
+        const submissionResult = await submitPermit(formData, originalTrackingId);
+
+        if (!submissionResult.success || !submissionResult.trackingId) {
+            return { success: false, error: submissionResult.error || "Failed to submit new permit during resubmission." };
+        }
         
+        // Now, update the old permit with the new tracking ID
         const q = query(collection(db, "permits"), where("trackingId", "==", originalTrackingId.toUpperCase()));
         const querySnapshot = await getDocs(q);
         
@@ -342,15 +367,14 @@ export async function resubmitPermit(formData: FormData) {
             await updateDoc(originalDoc.ref, {
                 status: "Resubmitted",
                 updatedAt: serverTimestamp(),
+                resubmittedTo: submissionResult.trackingId, // Link to the new permit
             });
         }
 
-        // After updating the old permit, submit the new one.
-        return await submitPermit(formData);
+        return submissionResult;
 
     } catch (error) {
         console.error("Resubmission error:", error);
         return { success: false, error: "An unexpected error occurred during resubmission." };
     }
-
 }

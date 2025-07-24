@@ -1,3 +1,4 @@
+
 import type { PtwFormValues } from "./schema";
 
 export const regionCircleMap = {
@@ -60,4 +61,6 @@ export interface Permit {
     approvalToken: string;
     createdAt: Date;
     updatedAt: Date;
+    resubmittedFrom?: string;
+    resubmittedTo?: string;
 }

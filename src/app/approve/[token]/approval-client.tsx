@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { updatePermitStatus } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, ThumbsDown, ThumbsUp, XCircle, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, ThumbsDown, ThumbsUp, XCircle, Image as ImageIcon, Info } from "lucide-react";
 
 interface ApprovalClientProps {
   permit: Permit;
@@ -85,6 +85,16 @@ export function ApprovalClient({ permit, token }: ApprovalClientProps) {
 
   return (
     <div className="space-y-6">
+      {permit.resubmittedFrom && (
+        <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>This is a Resubmitted Permit</AlertTitle>
+            <AlertDescription>
+                This permit was resubmitted for a previously rejected permit with Tracking ID: <span className="font-mono">{permit.resubmittedFrom}</span>
+            </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Requester and Site Details</CardTitle>

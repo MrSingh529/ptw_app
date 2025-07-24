@@ -45,6 +45,8 @@ export type PermitLite = {
     teamMembers: string;
     permissionDate: string;
     contactNumber: string;
+    resubmittedFrom: string;
+    resubmittedTo: string;
 };
 
 type Analytics = {
@@ -168,7 +170,8 @@ export function AdminClient() {
         const headers = [
             "Tracking ID", "Status", "Requester Company", "Requester Email", "Contact Number",
             "Approver Email", "Site Name", "Site ID", "Region", "Circle", "Permission Date",
-            "Work Types", "Team Members", "Tool Box Talks", "Submitted At", "Last Updated At"
+            "Work Types", "Team Members", "Tool Box Talks", "Submitted At", "Last Updated At",
+            "Resubmitted From", "Resubmitted To"
         ];
         
         const dataToExport = filteredPermits.map(p => ({
@@ -188,6 +191,8 @@ export function AdminClient() {
             "Tool Box Talks": p.toolBoxTalks,
             "Submitted At": new Date(p.createdAt).toLocaleString(),
             "Last Updated At": new Date(p.updatedAt).toLocaleString(),
+            "Resubmitted From": p.resubmittedFrom,
+            "Resubmitted To": p.resubmittedTo
         }));
         
         // Simple CSV conversion
@@ -302,9 +307,10 @@ export function AdminClient() {
                             <TableRow>
                                 <TableHead>Tracking ID</TableHead>
                                 <TableHead>Site Name</TableHead>
-                                <TableHead>Approver Email</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Submitted At</TableHead>
+                                <TableHead>Resubmitted From</TableHead>
+                                <TableHead>Resubmitted To</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -313,22 +319,24 @@ export function AdminClient() {
                                    <TableRow key={i}>
                                         <TableCell><Skeleton className="h-5 w-full" /></TableCell>
                                         <TableCell><Skeleton className="h-5 w-full" /></TableCell>
-                                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
                                         <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                         <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
                                    </TableRow>
                                 ))
                             ) : filteredPermits.length > 0 ? filteredPermits.map(permit => (
                                 <TableRow key={permit.trackingId}>
                                     <TableCell className="font-mono">{permit.trackingId}</TableCell>
                                     <TableCell>{permit.siteName}</TableCell>
-                                    <TableCell>{permit.approverEmail}</TableCell>
                                     <TableCell>{getStatusBadge(permit.status)}</TableCell>
                                     <TableCell>{new Date(permit.createdAt).toLocaleDateString()}</TableCell>
+                                    <TableCell className="font-mono">{permit.resubmittedFrom}</TableCell>
+                                    <TableCell className="font-mono">{permit.resubmittedTo}</TableCell>
                                 </TableRow>
                             )) : (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center">No permits found.</TableCell>
+                                    <TableCell colSpan={6} className="text-center">No permits found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
